@@ -224,16 +224,6 @@ func marshalWebhook(wh *client.Webhook, d identifiableGetterSetter) error {
 		fields["authentication"] = []map[string]any{auth}
 	}
 
-	if !wh.CreatedAt.IsZero() {
-		fields["created_at"] = wh.CreatedAt.String()
-		fields["created_by"] = wh.CreatedBy
-	}
-
-	if !wh.UpdatedAt.IsZero() {
-		fields["updated_at"] = wh.UpdatedAt.String()
-		fields["updated_by"] = wh.UpdatedBy
-	}
-
 	err := setSchemaFields(d, fields)
 	if err != nil {
 		return err

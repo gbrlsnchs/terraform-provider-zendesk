@@ -5,13 +5,13 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/nukosuke/go-zendesk/zendesk"
+	client "github.com/nukosuke/go-zendesk/zendesk"
 )
 
 func dataSourceZendeskWebhook() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: func(ctx context.Context, data *schema.ResourceData, i interface{}) diag.Diagnostics {
-			zd := i.(*zendesk.Client)
+			zd := i.(*client.Client)
 			return readWebhookDataSource(ctx, data, zd)
 		},
 
@@ -109,9 +109,52 @@ func dataSourceZendeskWebhook() *schema.Resource {
 	}
 }
 
-func readWebhookDataSource(ctx context.Context, d identifiableGetterSetter, zd zendesk.WebhookAPI) diag.Diagnostics {
+func readWebhookDataSource(ctx context.Context, d identifiableGetterSetter, zd client.WebhookAPI) diag.Diagnostics {
 	id := d.Get("id").(string)
 	d.SetId(id)
+	var diags diag.Diagnostics
 
-	return readWebhook(ctx, d, zd)
+	wh, err := zd.GetWebhook(ctx, id)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	err = marshalWebhookDataSource(wh, d)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	return diags
+}
+
+func marshalWebhookDataSource(wh *client.Webhook, d identifiableGetterSetter) error {
+	fields := map[string]any{
+		"description":    wh.Description,
+		"endpoint":       wh.Endpoint,
+		"http_method":    wh.HTTPMethod,
+		"name":           wh.Name,
+		"request_format": wh.RequestFormat,
+		"status":         wh.Status,
+		"subscriptions":  wh.Subscriptions,
+		"created_at":     wh.CreatedAt.String(),
+		"created_by":     wh.CreatedBy,
+		"updated_at":     wh.UpdatedAt.String(),
+		"updated_by":     wh.UpdatedBy,
+	}
+
+	if wh.Authentication != nil {
+		auth := map[string]any{
+			"type":         wh.Authentication.Type,
+			"data":         wh.Authentication.Data.(map[string]any),
+			"add_position": wh.Authentication.AddPosition,
+		}
+		fields["authentication"] = []map[string]any{auth}
+	}
+
+	err := setSchemaFields(d, fields)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

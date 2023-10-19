@@ -71,6 +71,18 @@ func TestWebhookDataSourceRead(t *testing.T) {
 	if v, ok := m.GetOk("created_at"); !ok || v.(string) != createdAt.String() {
 		t.Fatalf("Read test_webhook did not set CreatedAt field. Expected %v, Got %v", out.CreatedAt, v)
 	}
+
+	if v, ok := m.GetOk("created_by"); !ok || v.(string) != "111" {
+		t.Fatalf("Read test_webhook did not set CreatedBy field. Expected %v, Got %v", out.CreatedBy, v)
+	}
+
+	if v, ok := m.GetOk("updated_at"); !ok || v.(string) != updatedAt.String() {
+		t.Fatalf("Read test_webhook did not set UpdatedAt field. Expected %v, Got %v", out.CreatedAt, v)
+	}
+
+	if v, ok := m.GetOk("updated_by"); !ok || v.(string) != "999" {
+		t.Fatalf("Read test_webhook did not set UpdatedBy field. Expected %v, Got %v", out.UpdatedBy, v)
+	}
 }
 
 func TestAccWebhookDataSource(t *testing.T) {
