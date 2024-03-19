@@ -20,3 +20,5 @@ vendor
 .idea
 *.iml
 .pre-commit-config.yaml
+dist/
+terraform-provider-zendesk_*
