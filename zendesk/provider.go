@@ -50,6 +50,7 @@ func Provider() *schema.Provider {
 			"zendesk_group":        resourceZendeskGroup(),
 			"zendesk_ticket_field": resourceZendeskTicketField(),
 			"zendesk_macro": resourceZendeskMacro(),
+			"zendesk_view": resourceZendeskView(),
 			"zendesk_user_field":   resourceZendeskUserField(),
 			"zendesk_ticket_form":  resourceZendeskTicketForm(),
 			"zendesk_trigger":      resourceZendeskTrigger(),
