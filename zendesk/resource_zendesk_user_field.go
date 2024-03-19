@@ -49,6 +49,11 @@ func resourceZendeskUserField() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 			},
+			"key": {
+				Description: "A unique key that identifies this custom field. This is used for updating the field and referencing in placeholders. The key must consist of only letters, numbers, and underscores. It can't be only numbers and can't be reused if deleted.",
+				Type:        schema.TypeString,
+				Required:    true,
+			},
 			"description": {
 				Description: "Describes the purpose of the user field to users.",
 				Type:        schema.TypeString,
@@ -187,6 +192,7 @@ func marshalUserField(field client.UserField, d identifiableGetterSetter) error 
 		"url":                   field.URL,
 		"type":                  field.Type,
 		"title":                 field.Title,
+		"key": 					 field.Key,
 		"description":           field.Description,
 		"position":              field.Position,
 		"active":                field.Active,
@@ -259,6 +265,10 @@ func unmarshalUserField(d identifiableGetterSetter) (client.UserField, error) {
 	if v, ok := d.GetOk("title"); ok {
 		tf.Title = v.(string)
 		tf.RawTitle = v.(string)
+	}
+
+	if v, ok := d.GetOk("key"); ok {
+		tf.Key = v.(string)
 	}
 
 	if v, ok := d.GetOk("description"); ok {
