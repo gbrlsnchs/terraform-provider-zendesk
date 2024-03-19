@@ -379,7 +379,7 @@ func createUserField(ctx context.Context, d identifiableGetterSetter, zd *client
 	}
 
 	// Actual API request
-	tf, err = CreateUserField(ctx, zd, tf)
+	tf, err = zd.CreateUserField(ctx, tf)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -492,24 +492,6 @@ func GetUserField(ctx context.Context, z *client.Client, userID int64) (client.U
 	}
 
 	return result.UserField, err
-}
-
-func CreateUserField(ctx context.Context, z *client.Client, UserField client.UserField) (client.UserField, error) {
-	var data, result struct {
-		UserField client.UserField `json:"user_field"`
-	}
-	data.UserField = UserField
-
-	body, err := z.Post(ctx, "/user_fields.json", data)
-	if err != nil {
-		return client.UserField{}, err
-	}
-
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return client.UserField{}, err
-	}
-	return result.UserField, nil
 }
 
 // UpdateUserField updates a field with the specified ticket field
