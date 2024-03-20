@@ -58,6 +58,18 @@ func resourceZendeskView() *schema.Resource {
 			// Both the "all" and "any" parameter are optional, but at least one of them must be supplied
 			"all": viewConditionSchema("Logical AND. All the conditions must be met."),
 			"any": viewConditionSchema("Logical OR. Any condition can be met."),
+			"group_title": {
+				Description: "Sort or group the tickets by a column in the View columns table",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Default:     false,
+			},
+			"sort_title": {
+				Description: "Sort or group the tickets by a column in the View columns table",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Default:     false,
+			},
 			"group_by": {
 				Description: "Sort or group the tickets by a column in the View columns table",
 				Type:        schema.TypeString,
@@ -82,24 +94,13 @@ func resourceZendeskView() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
-			"column": {
-				Description: "What the column view will do.",
+			"columns": {
+				Description: "all the columns",
 				Type:        schema.TypeSet,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"id": {
-							Description: "The name of a ticket field to modify.",
-							Type:        schema.TypeString,
-							Required:    true,
-						},
-						"title": {
-							Description: "The new value of the field.",
-							Type:        schema.TypeString,
-							Required:    true,
-						},
-					},
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
 				},
-				Required: true,
+				Optional: true,
 			},
 		},
 	}
@@ -118,6 +119,12 @@ func marshalViews(field View, d identifiableGetterSetter) error {
 		"group_order": field.Execution.GroupOrder,
 		"sort_order": field.Execution.SortOrder,
 	}
+
+	var columns []string
+	for _, col := range field.Execution.Columns {
+		columns = append(columns, col.ID)
+	}
+	fields["columns"] = columns
 
 	var alls []map[string]interface{}
 	for _, v := range field.Conditions.All {
@@ -160,11 +167,9 @@ func unmarshalViews(d identifiableGetterSetter) (View, error) {
 		}
 		tf.ID = id
 	}
-
 	if v, ok := d.GetOk("url"); ok {
 		tf.URL = v.(string)
 	}
-
 	if v, ok := d.GetOk("group_by"); ok {
 		tf.Execution.GroupBy = v.(string)
 	}
@@ -177,24 +182,16 @@ func unmarshalViews(d identifiableGetterSetter) (View, error) {
 	if v, ok := d.GetOk("sort_order"); ok {
 		tf.Execution.SortOrder = v.(string)
 	}
-
-	if v, ok := d.GetOk("column"); ok {
+	if v, ok := d.GetOk("columns"); ok {
 		columns := v.(*schema.Set).List()
 		c := []Column{}
-		for _, a := range columns {
-			action, ok := a.(map[string]interface{})
-			if !ok {
-				return tf, fmt.Errorf("could not parse actions for columns %v", tf)
-			}
-
+		for _, col := range columns {
 			c = append(c, Column{
-				ID: action["id"].(string),
-				Title: action["title"].(string),
+				ID: col.(string),
 			})
 		}
 		tf.Execution.Columns = c
 	}
-
 	if v, ok := d.GetOk("all"); ok {
 		allConditions := v.(*schema.Set).List()
 		conditions := []ViewCondition{}
@@ -211,7 +208,6 @@ func unmarshalViews(d identifiableGetterSetter) (View, error) {
 		}
 		tf.Conditions.All = conditions
 	}
-
 	if v, ok := d.GetOk("any"); ok {
 		anyConditions := v.(*schema.Set).List()
 		conditions := []ViewCondition{}
@@ -228,19 +224,15 @@ func unmarshalViews(d identifiableGetterSetter) (View, error) {
 		}
 		tf.Conditions.Any = conditions
 	}
-	
 	if v, ok := d.GetOk("title"); ok {
 		tf.Title = v.(string)
 	}
-
 	if v, ok := d.GetOk("description"); ok {
 		tf.Description = v.(string)
 	}
-
 	if v, ok := d.GetOk("position"); ok {
 		tf.Position = v.(int)
 	}
-
 	if v, ok := d.GetOk("active"); ok {
 		tf.Active = v.(bool)
 	}
@@ -335,6 +327,37 @@ func updateViews(ctx context.Context, d identifiableGetterSetter, zd *client.Cli
 	return diags
 }
 
+
+func mapViewToViewCreateOrUpdate(view View) ViewCreateOrUpdate {
+	var viewCreateOrUpdate ViewCreateOrUpdate
+
+	// Map properties from view to viewCreateOrUpdate
+	viewCreateOrUpdate.ID = view.ID
+	viewCreateOrUpdate.Active = view.Active
+	viewCreateOrUpdate.Description = view.Description
+	viewCreateOrUpdate.Position = view.Position
+	viewCreateOrUpdate.Title = view.Title
+	viewCreateOrUpdate.CreatedAt = view.CreatedAt
+	viewCreateOrUpdate.UpdatedAt = view.UpdatedAt
+	viewCreateOrUpdate.All = view.Conditions.All
+	viewCreateOrUpdate.Any = view.Conditions.Any
+	viewCreateOrUpdate.URL = view.URL
+
+	// Rename "Execution" to "Output" in ViewCreateOrUpdate
+	viewCreateOrUpdate.Output.GroupBy = view.Execution.GroupBy
+	viewCreateOrUpdate.Output.SortBy = view.Execution.SortBy
+	viewCreateOrUpdate.Output.GroupOrder = view.Execution.GroupOrder
+	viewCreateOrUpdate.Output.SortOrder = view.Execution.SortOrder
+
+	var columns []string
+	for _, col := range view.Execution.Columns {
+		columns = append(columns, col.ID)
+	}
+	viewCreateOrUpdate.Output.Columns = columns
+
+	return viewCreateOrUpdate
+}
+
 func resourceZendeskViewsDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	zd := meta.(*client.Client)
 	return deleteViews(ctx, d, zd)
@@ -371,6 +394,8 @@ type (
 		Title string `json:"title"`
 	}
 
+	// View has a certain structure in Get & Different structure in 
+	// Put/Post
 	View struct {
 		ID          int64     `json:"id,omitempty"`
 		Active      bool      `json:"active"`
@@ -391,10 +416,25 @@ type (
 			GroupOrder string `json:"group_order",omitempty`
 			SortOrder string `json:"sort_order",omitempty`
 		} `json:"execution"`
-
-		// Conditions Conditions
-		// Execution Execution
-		// Restriction Restriction
+	}
+	ViewCreateOrUpdate struct {
+		ID          int64     `json:"id,omitempty"`
+		Active      bool      `json:"active"`
+		Description string    `json:"description"`
+		Position    int     `json:"position"`
+		Title       string    `json:"title"`
+		CreatedAt   time.Time `json:"created_at,omitempty"`
+		UpdatedAt   time.Time `json:"updated_at,omitempty"`
+		All []ViewCondition `json:"all"`
+		Any []ViewCondition `json:"any"`
+		URL         string        `json:"url,omitempty"`
+		Output struct {
+			Columns []string `json:"columns"`
+			GroupBy string `json:"group_by",omitempty`
+			SortBy string `json:"sort_by",omitempty`
+			GroupOrder string `json:"group_order",omitempty`
+			SortOrder string `json:"sort_order",omitempty`
+		} `json:"output"`
 	}
 )
 
@@ -427,12 +467,16 @@ func viewConditionSchema(desc string) *schema.Schema {
 }
 
 func CreateView(ctx context.Context, z *client.Client, field View) (View, error) {
-	var data, result struct {
+	var result struct {
 		View View `json:"view"`
 	}
-	data.View = field
+	var data struct {
+		View ViewCreateOrUpdate `json:"view"`
+	}
+	data.View = mapViewToViewCreateOrUpdate(field)
 
 	body, err := z.Post(ctx, "/views.json", data)
+
 	if err != nil {
 		return View{}, err
 	}
@@ -466,11 +510,16 @@ func GetView(ctx context.Context, z *client.Client, viewID int64) (View, error) 
 // UpdateView updates a field with the specified ticket field
 // ref: https://developer.zendesk.com/rest_api/docs/support/user_fields#update-ticket-field
 func UpdateView(ctx context.Context, z *client.Client, ticketID int64, field View) (View, error) {
-	var result, data struct {
+	var result struct {
 		View View `json:"view"`
 	}
+	var data struct {
+		View ViewCreateOrUpdate `json:"view"`
+	}
+	data.View = mapViewToViewCreateOrUpdate(field)
 
-	data.View = field
+	// jsonData, err := json.Marshal(data)
+	// fmt.Println(string(jsonData))
 
 	body, err := z.Put(ctx, fmt.Sprintf("/views/%d.json", ticketID), data)
 
