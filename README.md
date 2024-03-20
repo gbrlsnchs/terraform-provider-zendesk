@@ -5,6 +5,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/nukosuke/terraform-provider-zendesk)](https://goreportcard.com/report/github.com/nukosuke/terraform-provider-zendesk)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnukosuke%2Fterraform-provider-zendesk.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnukosuke%2Fterraform-provider-zendesk?ref=badge_shield)
 
+# clearnote01 Additions
+20.03.24 - Added support for Zendesk Views, Macros & User Fields
+ 
 Terraform provider for Zendesk
 
 - [Document](https://registry.terraform.io/providers/nukosuke/zendesk/latest/docs)
