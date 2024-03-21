@@ -10,7 +10,7 @@
  
 Terraform provider for Zendesk
 
-- [Document](https://registry.terraform.io/providers/nukosuke/zendesk/latest/docs)
+- [Document](https://registry.terraform.io/providers/clearnote01/zendesk/latest/docs)
 
 ## Requirements
 
