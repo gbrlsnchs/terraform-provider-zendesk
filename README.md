@@ -45,9 +45,6 @@ $ go mod download
 $ go build
 ```
 
-## Maintainer
-- [nukosuke](https://github.com/nukosuke)
-
 ## License
 
 MIT License
