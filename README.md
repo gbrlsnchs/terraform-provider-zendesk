@@ -26,8 +26,8 @@ Instead configure provider as follow.
 terraform {
   required_providers {
     zendesk = {
-      source  = "nukosuke/zendesk"
-      version = ">= 0.0"
+      source  = "clearnote01/zendesk"
+      version = ">= 0.0.2"
     }
   }
 }
