@@ -39,7 +39,7 @@ and run `terraform init` in your Terraform resource directory.
 ### Build from source
 
 ```sh
-$ git clone git@github.com:nukosuke/terraform-provider-zendesk.git
+$ git clone git@github.com:clearnote01/terraform-provider-zendesk.git
 $ cd terraform-provider-zendesk
 $ go mod download
 $ go build
