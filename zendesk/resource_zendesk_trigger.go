@@ -41,6 +41,11 @@ func resourceZendeskTrigger() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 			},
+			"category_id": {
+				Description: "The title of the trigger.",
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
 			"active": {
 				Description: "Whether the trigger is active.",
 				Type:        schema.TypeBool,
@@ -86,11 +91,12 @@ func resourceZendeskTrigger() *schema.Resource {
 func marshalTrigger(trigger client.Trigger, d identifiableGetterSetter) error {
 	fields := map[string]interface{}{
 		"title":       trigger.Title,
+		"category_id": trigger.CategoryID,
 		"active":      trigger.Active,
 		"position":    trigger.Position,
 		"description": trigger.Description,
 	}
-
+	
 	var alls []map[string]interface{}
 	for _, v := range trigger.Conditions.All {
 		m := map[string]interface{}{
@@ -162,6 +168,10 @@ func unmarshalTrigger(d identifiableGetterSetter) (client.Trigger, error) {
 
 	if v, ok := d.GetOk("description"); ok {
 		trg.Description = v.(string)
+	}
+
+	if v, ok := d.GetOk("category_id"); ok {
+		trg.CategoryID = v.(string)
 	}
 
 	if v, ok := d.GetOk("all"); ok {
