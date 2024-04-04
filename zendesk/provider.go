@@ -54,6 +54,7 @@ func Provider() *schema.Provider {
 			"zendesk_user_field":   resourceZendeskUserField(),
 			"zendesk_ticket_form":  resourceZendeskTicketForm(),
 			"zendesk_trigger":      resourceZendeskTrigger(),
+			"zendesk_trigger_category": resourceZendeskTriggerCategory(),
 			"zendesk_target":       resourceZendeskTarget(),
 			"zendesk_attachment":   resourceZendeskAttachment(),
 			"zendesk_organization": resourceZendeskOrganization(),
