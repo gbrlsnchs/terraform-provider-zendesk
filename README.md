@@ -7,6 +7,7 @@
 
 # clearnote01 Additions
 20.03.24 - Added support for Zendesk Views, Macros & User Fields
+03.04.23 - Added support for Zendesk Trigger Categories
  
 Terraform provider for Zendesk
 
