@@ -2,10 +2,11 @@ package zendesk
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
-	"encoding/json"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -96,11 +97,19 @@ func resourceZendeskView() *schema.Resource {
 			},
 			"columns": {
 				Description: "all the columns",
-				Type:        schema.TypeSet,
+				Optional:    true,
+				Type:        schema.TypeList,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional: true,
+			},
+			"restrictions": {
+				Description: "allowed group ids",
+				Optional:    true,
+				Type:        schema.TypeSet,
+				Elem: &schema.Schema{
+					Type: schema.TypeInt,
+				},
 			},
 		},
 	}
@@ -109,21 +118,39 @@ func resourceZendeskView() *schema.Resource {
 // marshalViews encodes the provided user field into the provided resource data
 func marshalViews(field View, d identifiableGetterSetter) error {
 	fields := map[string]interface{}{
-		"url":                   field.URL,
-		"title":                 field.Title,
-		"description":           field.Description,
-		"position":              field.Position,
-		"active":                field.Active,
-		"group_by": field.Execution.GroupBy,
-		"sort_by": field.Execution.SortBy,
+		"url":         field.URL,
+		"title":       field.Title,
+		"description": field.Description,
+		"position":    field.Position,
+		"active":      field.Active,
+		"group_by":    field.Execution.GroupBy,
+		"sort_by":     field.Execution.SortBy,
 		"group_order": field.Execution.GroupOrder,
-		"sort_order": field.Execution.SortOrder,
+		"sort_order":  field.Execution.SortOrder,
+		// "restrictions": field.Restriction.IDs,
+	}
+
+	if field.Restriction == nil {
+		fields["restrictions"] = nil
+	} else {
+		var restrictions []int
+		for _, col := range field.Restriction.IDs {
+			restrictions = append(restrictions, col)
+		}
+		fields["restrictions"] = restrictions
 	}
 
 	var columns []string
+
 	for _, col := range field.Execution.Columns {
-		columns = append(columns, col.ID)
+		var _, isFloat = col.ID.(float64)
+		if isFloat {
+			columns = append(columns, strconv.FormatFloat(col.ID.(float64), 'f', -1, 64))
+		} else {
+			columns = append(columns, col.ID.(string))
+		}
 	}
+
 	fields["columns"] = columns
 
 	var alls []map[string]interface{}
@@ -179,16 +206,34 @@ func unmarshalViews(d identifiableGetterSetter) (View, error) {
 	if v, ok := d.GetOk("group_order"); ok {
 		tf.Execution.GroupOrder = v.(string)
 	}
+	if v, ok := d.GetOk("restrictions"); ok {
+		var restrictions []int
+		for _, ids := range v.(*schema.Set).List() {
+			restrictions = append(restrictions, ids.(int))
+		}
+		tf.Restriction = &Restriction{}
+		tf.Restriction.IDs = restrictions
+		tf.Restriction.Type = "Group"
+	} else {
+		tf.Restriction = nil
+	}
 	if v, ok := d.GetOk("sort_order"); ok {
 		tf.Execution.SortOrder = v.(string)
 	}
 	if v, ok := d.GetOk("columns"); ok {
-		columns := v.(*schema.Set).List()
+		columns := v.([]interface{})
 		c := []Column{}
 		for _, col := range columns {
-			c = append(c, Column{
-				ID: col.(string),
-			})
+			var _, isFloat = col.(float64)
+			if isFloat {
+				c = append(c, Column{
+					ID: col.(float64),
+				})
+			} else {
+				c = append(c, Column{
+					ID: col.(string),
+				})
+			}
 		}
 		tf.Execution.Columns = c
 	}
@@ -327,7 +372,6 @@ func updateViews(ctx context.Context, d identifiableGetterSetter, zd *client.Cli
 	return diags
 }
 
-
 func mapViewToViewCreateOrUpdate(view View) ViewCreateOrUpdate {
 	var viewCreateOrUpdate ViewCreateOrUpdate
 
@@ -349,7 +393,9 @@ func mapViewToViewCreateOrUpdate(view View) ViewCreateOrUpdate {
 	viewCreateOrUpdate.Output.GroupOrder = view.Execution.GroupOrder
 	viewCreateOrUpdate.Output.SortOrder = view.Execution.SortOrder
 
-	var columns []string
+	viewCreateOrUpdate.Restriction = view.Restriction
+
+	var columns []interface{}
 	for _, col := range view.Execution.Columns {
 		columns = append(columns, col.ID)
 	}
@@ -390,54 +436,61 @@ type (
 	}
 
 	Column struct {
-		ID string `json:"id"`
-		Title string `json:"title"`
+		ID    interface{} `json:"id"` // is string for normal fields & number for custom fields
+		Title string      `json:"title"`
 	}
 
-	// View has a certain structure in Get & Different structure in 
+	Restriction struct {
+		IDs  []int  `json:"ids"`
+		Type string `json:"type"`
+	}
+
+	// View has a certain structure in Get & Different structure in
 	// Put/Post
 	View struct {
-		ID          int64     `json:"id,omitempty"`
-		Active      bool      `json:"active"`
-		Description string    `json:"description"`
-		Position    int     `json:"position"`
-		Title       string    `json:"title"`
-		CreatedAt   time.Time `json:"created_at,omitempty"`
-		UpdatedAt   time.Time `json:"updated_at,omitempty"`
-		Conditions struct {
+		ID          int64        `json:"id,omitempty"`
+		Active      bool         `json:"active"`
+		Description string       `json:"description"`
+		Position    int          `json:"position"`
+		Title       string       `json:"title"`
+		CreatedAt   time.Time    `json:"created_at,omitempty"`
+		UpdatedAt   time.Time    `json:"updated_at,omitempty"`
+		Restriction *Restriction `json:"restriction"`
+		Conditions  struct {
 			All []ViewCondition `json:"all"`
 			Any []ViewCondition `json:"any"`
 		} `json:"conditions"`
-		URL         string        `json:"url,omitempty"`
+		URL       string `json:"url,omitempty"`
 		Execution struct {
-			Columns []Column `json:"columns"`
-			GroupBy string `json:"group_by",omitempty`
-			SortBy string `json:"sort_by",omitempty`
-			GroupOrder string `json:"group_order",omitempty`
-			SortOrder string `json:"sort_order",omitempty`
+			Columns    []Column `json:"columns"`
+			GroupBy    string   `json:"group_by,omitempty"`
+			SortBy     string   `json:"sort_by,omitempty"`
+			GroupOrder string   `json:"group_order,omitempty"`
+			SortOrder  string   `json:"sort_order,omitempty"`
 		} `json:"execution"`
 	}
 	ViewCreateOrUpdate struct {
-		ID          int64     `json:"id,omitempty"`
-		Active      bool      `json:"active"`
-		Description string    `json:"description"`
-		Position    int     `json:"position"`
-		Title       string    `json:"title"`
-		CreatedAt   time.Time `json:"created_at,omitempty"`
-		UpdatedAt   time.Time `json:"updated_at,omitempty"`
-		All []ViewCondition `json:"all"`
-		Any []ViewCondition `json:"any"`
-		URL         string        `json:"url,omitempty"`
+		ID          int64           `json:"id,omitempty"`
+		Active      bool            `json:"active"`
+		Description string          `json:"description"`
+		Position    int             `json:"position"`
+		Title       string          `json:"title"`
+		CreatedAt   time.Time       `json:"created_at,omitempty"`
+		UpdatedAt   time.Time       `json:"updated_at,omitempty"`
+		All         []ViewCondition `json:"all"`
+		Any         []ViewCondition `json:"any"`
+		URL         string          `json:"url,omitempty"`
+		Restriction *Restriction    `json:"restriction"`
+
 		Output struct {
-			Columns []string `json:"columns"`
-			GroupBy string `json:"group_by",omitempty`
-			SortBy string `json:"sort_by",omitempty`
-			GroupOrder string `json:"group_order",omitempty`
-			SortOrder string `json:"sort_order",omitempty`
+			Columns    []interface{} `json:"columns"` // number for custom fields, string otherwise
+			GroupBy    string        `json:"group_by,omitempty"`
+			SortBy     string        `json:"sort_by,omitempty"`
+			GroupOrder string        `json:"group_order,omitempty"`
+			SortOrder  string        `json:"sort_order,omitempty"`
 		} `json:"output"`
 	}
 )
-
 
 func viewConditionSchema(desc string) *schema.Schema {
 	return &schema.Schema{
@@ -494,6 +547,8 @@ func GetView(ctx context.Context, z *client.Client, viewID int64) (View, error) 
 	}
 
 	body, err := z.Get(ctx, fmt.Sprintf("/views/%d.json", viewID))
+	fmt.Println("GET bar")
+	fmt.Println(string(body))
 
 	if err != nil {
 		return View{}, err
@@ -516,14 +571,18 @@ func UpdateView(ctx context.Context, z *client.Client, ticketID int64, field Vie
 	var data struct {
 		View ViewCreateOrUpdate `json:"view"`
 	}
+
 	data.View = mapViewToViewCreateOrUpdate(field)
 
-	// jsonData, err := json.Marshal(data)
-	// fmt.Println(string(jsonData))
+	jsonData, err := json.Marshal(data)
+	fmt.Println("Update Processed payload: JSON")
+	fmt.Println(string(jsonData))
 
 	body, err := z.Put(ctx, fmt.Sprintf("/views/%d.json", ticketID), data)
 
 	if err != nil {
+		fmt.Println("Printing Error")
+		fmt.Println(fmt.Sprintf("%+v\n", err))
 		return View{}, err
 	}
 
