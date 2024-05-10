@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -72,6 +73,14 @@ func resourceZendeskMacro() *schema.Resource {
 				Optional:    true,
 				Default:     true,
 			},
+			"restrictions": {
+				Description: "allowed group ids",
+				Optional:    true,
+				Type:        schema.TypeSet,
+				Elem: &schema.Schema{
+					Type: schema.TypeInt,
+				},
+			},
 		},
 	}
 }
@@ -79,11 +88,30 @@ func resourceZendeskMacro() *schema.Resource {
 // marshalMacros encodes the provided user field into the provided resource data
 func marshalMacros(field client.Macro, d identifiableGetterSetter) error {
 	fields := map[string]interface{}{
-		"url":                   field.URL,
-		"title":                 field.Title,
-		"description":           field.Description,
-		"position":              field.Position,
-		"active":                field.Active,
+		"url":         field.URL,
+		"title":       field.Title,
+		"description": field.Description,
+		"position":    field.Position,
+		"active":      field.Active,
+	}
+
+	if field.Restriction == nil {
+		fields["restrictions"] = nil
+	} else {
+		var restrictions []int
+		mapi := field.Restriction.(map[string]interface{})
+		fmt.Println("marshalling to terraform")
+		fmt.Println(mapi)
+		ids := mapi["ids"]
+		if ids == nil {
+			fields["restrictions"] = nil
+		} else {
+			for _, col := range ids.([]interface{}) {
+				restrictions = append(restrictions, int(col.(float64)))
+			}
+			fields["restrictions"] = restrictions
+
+		}
 	}
 
 	var actions []map[string]interface{}
@@ -134,7 +162,7 @@ func unmarshalMacros(d identifiableGetterSetter) (client.Macro, error) {
 	if v, ok := d.GetOk("url"); ok {
 		tf.URL = v.(string)
 	}
-	
+
 	if v, ok := d.GetOk("title"); ok {
 		tf.Title = v.(string)
 	}
@@ -149,6 +177,20 @@ func unmarshalMacros(d identifiableGetterSetter) (client.Macro, error) {
 
 	if v, ok := d.GetOk("active"); ok {
 		tf.Active = v.(bool)
+	}
+
+	if v, ok := d.GetOk("restrictions"); ok {
+		var restrictions []int
+		for _, ids := range v.(*schema.Set).List() {
+			restrictions = append(restrictions, ids.(int))
+		}
+		macroRestriction := &MacroRestriction{}
+		macroRestriction.IDs = restrictions
+		macroRestriction.Type = "Group"
+
+		tf.Restriction = macroRestriction
+	} else {
+		tf.Restriction = nil
 	}
 
 	if v, ok := d.GetOk("action"); ok {
@@ -277,4 +319,9 @@ func deleteMacros(ctx context.Context, d identifiable, zd *client.Client) diag.D
 	}
 
 	return diags
+}
+
+type MacroRestriction struct {
+	IDs  []int  `json:"ids"`
+	Type string `json:"type"`
 }

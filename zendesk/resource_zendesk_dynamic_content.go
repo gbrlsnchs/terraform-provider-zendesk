@@ -89,7 +89,7 @@ func unmarshalDynamicContent(d identifiableGetterSetter) (client.DynamicContentI
 
 	dc_variant := client.DynamicContentVariant{}
 	dc_variant.Default = true // This lib only supports a single dc variant
-	dc_variant.Content = "BLANK_ONLY_HERE_BECAUSE_ZENDESK_API_NOT_GOOD"
+	dc_variant.Content = "AUTO_GENERATED_CONTENT_ZENDESK_API_LIMITATION"
 	// dc_variant.Active = false
 
 	if v, ok := d.GetOk("locale_id"); ok {
