@@ -13,7 +13,7 @@ import (
 
 func resourceZendeskDynamicContent() *schema.Resource {
 	return &schema.Resource{
-		Description: ``,
+		Description: `Due to limitation of zendesk API creates a placeholder dynamic_content_variant with placeholder text`,
 		CreateContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 			zd := meta.(*client.Client)
 			return createDynamicContent(ctx, d, zd)
@@ -43,15 +43,10 @@ func resourceZendeskDynamicContent() *schema.Resource {
 				Required:    true,
 				Description: "Name of the Dynamic Content Item",
 			},
-			"content": {
-				Type:        schema.TypeString,
-				Description: "Content of the dynamic content item",
-				Required:    true,
-			},
 			"locale_id": {
 				Type:        schema.TypeInt,
-				Description: "Locale Id for the dynamic content item",
-				Required:    true,
+				Description: "Default Locale Id for the dynamic content item",
+				Computed:    true,
 			},
 		},
 	}
@@ -59,9 +54,9 @@ func resourceZendeskDynamicContent() *schema.Resource {
 
 func marshalDynamicContent(dc client.DynamicContentItem, d identifiableGetterSetter) error {
 	fields := map[string]interface{}{
-		"url":       dc.URL,
-		"name":      dc.Name,
-		"content":   dc.Variants[0].Content,
+		"url":  dc.URL,
+		"name": dc.Name,
+		// "content":   dc.Variants[0].Content,
 		"locale_id": dc.DefaultLocaleID,
 	}
 
@@ -93,14 +88,15 @@ func unmarshalDynamicContent(d identifiableGetterSetter) (client.DynamicContentI
 	}
 
 	dc_variant := client.DynamicContentVariant{}
-	if v, ok := d.GetOk("content"); ok {
-		dc_variant.Default = true // This lib only supports a single dc variant
-		dc_variant.Content = v.(string)
-	}
+	dc_variant.Default = true // This lib only supports a single dc variant
+	dc_variant.Content = "BLANK_ONLY_HERE_BECAUSE_ZENDESK_API_NOT_GOOD"
+	// dc_variant.Active = false
 
 	if v, ok := d.GetOk("locale_id"); ok {
 		dc.DefaultLocaleID = int64(v.(int))
 		dc_variant.LocaleID = dc.DefaultLocaleID
+	} else {
+		dc_variant.LocaleID = 16
 	}
 	dc.Variants = append(dc.Variants, dc_variant)
 

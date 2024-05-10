@@ -127,7 +127,6 @@ func marshalViews(field View, d identifiableGetterSetter) error {
 		"sort_by":     field.Execution.SortBy,
 		"group_order": field.Execution.GroupOrder,
 		"sort_order":  field.Execution.SortOrder,
-		// "restrictions": field.Restriction.IDs,
 	}
 
 	if field.Restriction == nil {
