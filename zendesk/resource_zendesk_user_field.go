@@ -422,6 +422,13 @@ func readUserField(ctx context.Context, d identifiableGetterSetter, zd *client.C
 }
 
 func resourceZendeskUserFieldUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	if hasChange := d.HasChange("type"); hasChange {
+		if hasChange {
+			return diag.FromErr(
+				fmt.Errorf("field is write-once. The 'type' cannot be changed after resource creation"),
+			)
+		}
+	}
 	zd := meta.(*client.Client)
 	return updateUserField(ctx, d, zd)
 }
