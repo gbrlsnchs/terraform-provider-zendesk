@@ -412,6 +412,13 @@ func readTicketField(ctx context.Context, d identifiableGetterSetter, zd client.
 }
 
 func resourceZendeskTicketFieldUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	if hasChange := d.HasChange("type"); hasChange {
+		if hasChange {
+			return diag.FromErr(
+				fmt.Errorf("field is write-once. The 'type' cannot be changed after resource creation"),
+			)
+		}
+	}
 	zd := meta.(*client.Client)
 	return updateTicketField(ctx, d, zd)
 }

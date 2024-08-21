@@ -2,9 +2,10 @@ package zendesk
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
-	"encoding/json"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -189,13 +190,13 @@ func resourceZendeskUserField() *schema.Resource {
 // marshalUserField encodes the provided user field into the provided resource data
 func marshalUserField(field client.UserField, d identifiableGetterSetter) error {
 	fields := map[string]interface{}{
-		"url":                   field.URL,
-		"type":                  field.Type,
-		"title":                 field.Title,
-		"key": 					 field.Key,
-		"description":           field.Description,
-		"position":              field.Position,
-		"active":                field.Active,
+		"url":         field.URL,
+		"type":        field.Type,
+		"title":       field.Title,
+		"key":         field.Key,
+		"description": field.Description,
+		"position":    field.Position,
+		"active":      field.Active,
 		// "required":              field.Required,
 		// "collapsed_for_agents":  field.CollapsedForAgents,
 		"regexp_for_validation": field.RegexpForValidation,
@@ -203,7 +204,7 @@ func marshalUserField(field client.UserField, d identifiableGetterSetter) error 
 		// "visible_in_portal":     field.VisibleInPortal,
 		// "editable_in_portal":    field.EditableInPortal,
 		// "required_in_portal":    field.RequiredInPortal,
-		"tag":                   field.Tag,
+		"tag": field.Tag,
 		// "sub_type_id":           field.SubTypeID,
 		// "removable":             field.Removable,
 		// "agent_description":     field.AgentDescription,
