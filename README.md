@@ -1,4 +1,5 @@
 # terraform-provider-zendesk
+
 [![Actions Status](https://github.com/nukosuke/terraform-provider-zendesk/workflows/CI/badge.svg)](https://github.com/nukosuke/terraform-provider-zendesk/actions)
 [![Build status](https://ci.appveyor.com/api/projects/status/ti5il35v6a6ankcq/branch/master?svg=true)](https://ci.appveyor.com/project/nukosuke/terraform-provider-zendesk/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/nukosuke/terraform-provider-zendesk/badge.svg?branch=master)](https://coveralls.io/github/nukosuke/terraform-provider-zendesk?branch=master)
@@ -6,9 +7,17 @@
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnukosuke%2Fterraform-provider-zendesk.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnukosuke%2Fterraform-provider-zendesk?ref=badge_shield)
 
 # clearnote01 Additions
+
 20.03.24 - Added support for Zendesk Views, Macros & User Fields
 03.04.23 - Added support for Zendesk Trigger Categories
- 
+
+# Debugging
+
+cd examples_scratchpad
+export TF_LOG=trace/debug/info
+make changes in scratchpad/resource.tf file in this folder
+make plan/apply
+
 Terraform provider for Zendesk
 
 - [Document](https://registry.terraform.io/providers/clearnote01/zendesk/latest/docs)
@@ -34,9 +43,10 @@ terraform {
 }
 ```
 
-and run `terraform init` in your Terraform resource directory.  
+and run `terraform init` in your Terraform resource directory.
 
 ## Development
+
 ### Build from source
 
 ```sh
@@ -52,8 +62,8 @@ MIT License
 
 See the file [LICENSE](./LICENSE) for details.
 
-
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnukosuke%2Fterraform-provider-zendesk.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnukosuke%2Fterraform-provider-zendesk?ref=badge_large)
 
 ## Related project
+
 - [nukosuke/go-zendesk](https://github.com/nukosuke/go-zendesk)

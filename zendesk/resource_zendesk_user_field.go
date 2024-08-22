@@ -141,8 +141,9 @@ func resourceZendeskUserField() *schema.Resource {
 			// },
 			// https://developer.zendesk.com/api-reference/ticketing/tickets/user_fields/#updating-drop-down-field-options
 			"custom_field_option": {
-				Description: `Required and presented for a custom user field of type "multiselect" or "tagger".`,
-				Type:        schema.TypeSet,
+				Description: `Required and presented for a custom user field of type "dropdown". At the start set custom_field_option.id as -1, then after execution replace it with the generated id of the custom_field_option.
+				Order is maintained, reorder the custom_field_option to apply the order change in dropdown in the UI`,
+				Type: schema.TypeList,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"name": {
@@ -158,7 +159,7 @@ func resourceZendeskUserField() *schema.Resource {
 						"id": {
 							Description: "Custom field option id.",
 							Type:        schema.TypeInt,
-							Computed:    true,
+							Required:    true,
 						},
 					},
 				},
@@ -188,7 +189,7 @@ func resourceZendeskUserField() *schema.Resource {
 }
 
 // marshalUserField encodes the provided user field into the provided resource data
-func marshalUserField(field client.UserField, d identifiableGetterSetter) error {
+func marshalUserField(field UserField, d identifiableGetterSetter) error {
 	fields := map[string]interface{}{
 		"url":         field.URL,
 		"type":        field.Type,
@@ -244,8 +245,8 @@ func marshalUserField(field client.UserField, d identifiableGetterSetter) error 
 }
 
 // unmarshalUserField parses the provided ResourceData and returns a user field
-func unmarshalUserField(d identifiableGetterSetter) (client.UserField, error) {
-	tf := client.UserField{}
+func unmarshalUserField(d identifiableGetterSetter) (UserField, error) {
+	tf := UserField{}
 
 	if v := d.Id(); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
@@ -327,41 +328,39 @@ func unmarshalUserField(d identifiableGetterSetter) (client.UserField, error) {
 	// }
 
 	if v, ok := d.GetOk("custom_field_option"); ok {
-		options := v.(*schema.Set).List()
-		customFieldOptions := make([]client.CustomFieldOption, 0)
+		options := v.([]interface{})
+		customFieldOptions := make([]CustomFieldOption, 0)
 		for _, o := range options {
 			option, ok := o.(map[string]interface{})
 			if !ok {
 				return tf, fmt.Errorf("could not parse custom options for field %v", tf)
 			}
 
-			customFieldOptions = append(customFieldOptions, client.CustomFieldOption{
+			optionId := option["id"]
+			var idPointer *int
+			if optionId != nil {
+				v, ok := optionId.(int)
+				if ok {
+					if v == -1 {
+						idPointer = nil
+					} else {
+						idPointer = &v
+					}
+				} else {
+					return tf, fmt.Errorf("optionId could not be set pointer %s", optionId)
+				}
+			}
+
+			customFieldOptions = append(customFieldOptions, CustomFieldOption{
 				Name:  option["name"].(string),
 				Value: option["value"].(string),
-				ID:    int64(option["id"].(int)),
+				ID:    idPointer,
 			})
 		}
 
 		tf.CustomFieldOptions = customFieldOptions
+		debugLog(tf.CustomFieldOptions, "customFieldOption")
 	}
-
-	// if v, ok := d.GetOk("system_field_options"); ok {
-	// 	options := v.(*schema.Set).List()
-	// 	systemFieldOptions := make([]client.UserFieldSystemFieldOption, 0)
-	// 	for _, o := range options {
-	// 		option, ok := o.(map[string]interface{})
-	// 		if !ok {
-	// 			return tf, fmt.Errorf("could not parse system options for field %v", tf)
-	// 		}
-
-	// 		systemFieldOptions = append(systemFieldOptions, client.UserFieldSystemFieldOption{
-	// 			Name:  option["name"].(string),
-	// 			Value: option["value"].(string),
-	// 		})
-	// 	}
-
-	// 	tf.SystemFieldOptions = systemFieldOptions
-	// }
 
 	return tf, nil
 }
@@ -380,7 +379,7 @@ func createUserField(ctx context.Context, d identifiableGetterSetter, zd *client
 	}
 
 	// Actual API request
-	tf, err = zd.CreateUserField(ctx, tf)
+	tf, err = CreateUserField(ctx, zd, tf)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -393,6 +392,26 @@ func createUserField(ctx context.Context, d identifiableGetterSetter, zd *client
 	}
 
 	return diags
+}
+
+func CreateUserField(ctx context.Context, z *client.Client, userField UserField) (UserField, error) {
+	var data, result struct {
+		UserField UserField `json:"user_field"`
+	}
+	data.UserField = userField
+
+	debugLog(data, "createUserField")
+
+	body, err := z.Post(ctx, "/user_fields.json", data)
+	if err != nil {
+		return UserField{}, err
+	}
+
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return UserField{}, err
+	}
+	return result.UserField, nil
 }
 
 func resourceZendeskUserFieldRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -441,6 +460,8 @@ func updateUserField(ctx context.Context, d identifiableGetterSetter, zd *client
 		return diag.FromErr(err)
 	}
 
+	debugLog(tf, "unmarshalled data")
+
 	id, err := strconv.ParseInt(d.Id(), 10, 64)
 	if err != nil {
 		return diag.FromErr(err)
@@ -483,20 +504,21 @@ func deleteUserField(ctx context.Context, d identifiable, zd *client.Client) dia
 
 // GetUserField gets a specified ticket field
 // ref: https://developer.zendesk.com/rest_api/docs/support/user_fields#show-ticket-field
-func GetUserField(ctx context.Context, z *client.Client, userID int64) (client.UserField, error) {
+func GetUserField(ctx context.Context, z *client.Client, userID int64) (UserField, error) {
 	var result struct {
-		UserField client.UserField `json:"user_field"`
+		UserField UserField `json:"user_field"`
 	}
 
 	body, err := z.Get(ctx, fmt.Sprintf("/user_fields/%d.json", userID))
 
 	if err != nil {
-		return client.UserField{}, err
+		return UserField{}, err
 	}
 
 	err = json.Unmarshal(body, &result)
+	debugLog(result, "## GET ##")
 	if err != nil {
-		return client.UserField{}, err
+		return UserField{}, err
 	}
 
 	return result.UserField, err
@@ -504,22 +526,24 @@ func GetUserField(ctx context.Context, z *client.Client, userID int64) (client.U
 
 // UpdateUserField updates a field with the specified ticket field
 // ref: https://developer.zendesk.com/rest_api/docs/support/user_fields#update-ticket-field
-func UpdateUserField(ctx context.Context, z *client.Client, ticketID int64, field client.UserField) (client.UserField, error) {
+func UpdateUserField(ctx context.Context, z *client.Client, ticketID int64, field UserField) (UserField, error) {
 	var result, data struct {
-		UserField client.UserField `json:"user_field"`
+		UserField UserField `json:"user_field"`
 	}
 
 	data.UserField = field
 
+	debugLog(data, "updateUserField")
+
 	body, err := z.Put(ctx, fmt.Sprintf("/user_fields/%d.json", ticketID), data)
 
 	if err != nil {
-		return client.UserField{}, err
+		return UserField{}, err
 	}
 
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return client.UserField{}, err
+		return UserField{}, err
 	}
 
 	return result.UserField, err
