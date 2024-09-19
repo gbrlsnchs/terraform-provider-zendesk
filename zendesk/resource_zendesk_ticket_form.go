@@ -72,7 +72,7 @@ func resourceZendeskTicketForm() *schema.Resource {
 			},
 			"ticket_field_ids": {
 				Description: "ids of all ticket fields which are in this ticket form. The products use the order of the ids to show the field values in the tickets.",
-				Type:        schema.TypeSet,
+				Type:        schema.TypeList,
 				Elem: &schema.Schema{
 					Type: schema.TypeInt,
 				},
@@ -143,7 +143,7 @@ func unmarshalTicketForm(d identifiableGetterSetter) (client.TicketForm, error) 
 	}
 
 	if v, ok := d.GetOk("ticket_field_ids"); ok {
-		ticketFieldIDs := v.(*schema.Set).List()
+		ticketFieldIDs := v.([]interface{})
 		for _, ticketFieldID := range ticketFieldIDs {
 			tf.TicketFieldIDs = append(tf.TicketFieldIDs, int64(ticketFieldID.(int)))
 		}

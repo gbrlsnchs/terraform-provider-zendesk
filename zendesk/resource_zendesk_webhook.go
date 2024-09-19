@@ -265,6 +265,14 @@ func readWebhook(ctx context.Context, d identifiableGetterSetter, zd client.Webh
 		return diag.FromErr(err)
 	}
 
+	// patch READS to replace data value, since it is missing password on reads
+	if wh.Authentication != nil {
+		if authenticationValue, ok := d.GetOk("authentication"); ok {
+			authentication := authenticationValue.([]any)[0].(map[string]any)
+			wh.Authentication.Data = authentication["data"].(map[string]any)
+		}
+	}
+
 	err = marshalWebhook(wh, d)
 	if err != nil {
 		return diag.FromErr(err)
